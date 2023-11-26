@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# Function to list available disks
+clear
+echo "### UNMOUNT THE DRIVE BEFORE USING IT IN THIS PROGRAM ###"
+echo
+echo "Available Disks:"
+lsblk -o VENDOR,MODEL,NAME,SIZE,TYPE
+echo
+
+# Function to format a selected disk
+format_disk() {
+  echo
+  read -p "Enter the name of the disk you want to format (e.g., sdb): " selected_disk
+  disk="/dev/$selected_disk"
+  # Check if the selected disk exists
+  if [[ -e "$disk" ]]; then
+    echo
+    read -p "Are you sure you want to format $disk? (Y/n): " confirmation
+    confirmation="${confirmation:-Y}"
+    if [[ $confirmation == "y" || $confirmation == "Y" ]]; then
+      echo
+      echo "Formatting $disk..."
+      echo
+      sudo umount $(mount | grep "$disk" | awk '{print $3}')
+      sudo wipefs -aq $disk
+      sudo parted -s $disk mklabel msdos
+      sudo parted $disk mkpart primary fat32 0% 100% set 1 boot on
+      sudo mkfs.fat -F 32 "$disk"1
+      echo
+      echo "Mounting $disk..."
+      sudo mount "$disk"1 /mnt
+      echo 
+      echo "Creating a /EFI/BOOT directory on "$disk"1..."
+      sudo mkdir /mnt/EFI /mnt/EFI/BOOT
+      echo
+      read -p "Drop the ipxe-arch.efi here >> " pxe
+      pxe="${pxe//\'/}"
+      sudo cp $pxe /mnt/EFI/BOOT/BOOTx64.EFI
+      echo
+      sudo umount "$disk"1
+      echo "Disk unmounted, now you can do whatever you want."
+    else
+      echo
+      echo "Procedure canceled."
+    fi
+  else
+    echo
+    echo "Invalid disk name or disk does not exist."
+  fi
+}
+
+while true; do
+  echo "Disk Formatting Script"
+  echo "1. Create PXE with USB"
+  echo "2. Run lsblk and exit"
+  echo
+  read -p "Please select an option (1/2): " choice
+
+  case $choice in
+    1)
+      format_disk
+      ;;
+    2)
+      echo
+      lsblk -o VENDOR,MODEL,NAME,SIZE,TYPE
+      echo
+      echo "Exiting the script."
+      exit 0
+      ;;
+    *)
+      echo "Invalid option. Please select a valid option (1/2)."
+      ;;
+  esac
+done
