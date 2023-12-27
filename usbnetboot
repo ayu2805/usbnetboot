@@ -40,6 +40,7 @@ format_disk() {
       echo
       sudo umount "$disk"1
       echo "Disk unmounted, now you can do whatever you want."
+      echo
     else
       echo
       echo "Procedure canceled."
